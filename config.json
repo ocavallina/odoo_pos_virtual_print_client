@@ -1,0 +1,64 @@
+{
+  "printers": [
+    {
+      "name": "BEBIDAS",
+      "ip": "192.168.1.122",
+      "port": 9100,
+      "token": "fc635ae7-3ee7-4e8e-b806-ea922d947e0a",
+      "active": true,
+      "max_retries": 3,
+      "retry_delay": 2,
+      "connection_timeout": 8,
+      "keep_alive_interval": 120,
+      "max_idle_time": 600
+    },
+    {
+      "name": "RECIBOS (PRINCIPAL)",
+      "ip": "192.168.1.122",
+      "port": 9100,
+      "token": "0d7e0855-771c-43e6-a95e-47143ac0a938",
+      "active": true,
+      "max_retries": 3,
+      "retry_delay": 2,
+      "connection_timeout": 8,
+      "keep_alive_interval": 120,
+      "max_idle_time": 600
+    },
+    {
+      "name": "PLANCHA",
+      "ip": "192.168.1.122",
+      "port": 9100,
+      "token": "2db3bf3b-58b8-4585-972e-6dbf2789a6a3",
+      "active": true,
+      "max_retries": 3,
+      "retry_delay": 2,
+      "connection_timeout": 8,
+      "keep_alive_interval": 300,
+      "max_idle_time": 600
+    },
+    {
+      "name": "CARRO DE PERROS",
+      "ip": "192.168.1.122",
+      "port": 9100,
+      "token": "4dbe4811-933f-4202-b1c5-74854912aa21",
+      "active": true,
+      "max_retries": 3,
+      "retry_delay": 2,
+      "connection_timeout": 8,
+      "keep_alive_interval": 300,
+      "max_idle_time": 600
+    },
+    {
+      "name": "RECIBOS (ESQUINA)",
+      "ip": "192.168.1.122",
+      "port": 9100,
+      "token": "b24960ef-0957-481b-a539-8ada3bc29ce9",
+      "active": true,
+      "max_retries": 3,
+      "retry_delay": 2,
+      "connection_timeout": 8,
+      "keep_alive_interval": 300,
+      "max_idle_time": 600
+    }
+  ]
+}

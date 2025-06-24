@@ -1,0 +1,74 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Autostart simple para servicio de impresoras
+
+PROJECT_DIR="$HOME/impresoras_pos"
+LOG_FILE="$PROJECT_DIR/logs/autostart.log"
+
+# Crear directorio de logs
+mkdir -p "$PROJECT_DIR/logs"
+
+# Función de log
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "$LOG_FILE"
+}
+
+log "🚀 Iniciando autostart..."
+
+# Iniciar SSH
+log "🔐 Iniciando SSH..."
+sshd 2>/dev/null
+
+# Esperar un poco para estabilización
+sleep 30
+
+# Verificar conectividad básica
+log "🌐 Verificando red..."
+for i in {1..10}; do
+    if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+        log "✅ Red OK"
+        break
+    fi
+    log "⏳ Esperando red... $i/10"
+    sleep 10
+done
+
+# Limpiar sesiones screen anteriores
+if screen -list | grep -q "impresoras"; then
+    log "🧹 Limpiando sesión screen anterior..."
+    screen -S impresoras -X quit 2>/dev/null
+    sleep 3
+fi
+
+# Iniciar servicio en screen con monitor
+log "🖨️  Iniciando servicio con monitor..."
+screen -S impresoras -d -m bash -c "
+    cd '$PROJECT_DIR' || exit 1
+    echo \"\$(date): Monitor iniciado\" >> logs/autostart.log
+    ./start_service.sh monitor
+"
+
+# Verificar que se inició
+sleep 5
+if screen -list | grep -q "impresoras"; then
+    log "✅ Servicio iniciado en screen"
+
+    # Verificar que el servicio interno está corriendo
+    cd "$PROJECT_DIR"
+    if ./start_service.sh status >/dev/null 2>&1; then
+        log "✅ Servicio confirmado activo"
+    else
+        log "⚠️  Servicio en screen pero no confirmado"
+    fi
+else
+    log "❌ Error: No se pudo crear sesión screen"
+fi
+
+log "🏁 Autostart completado"
+
+# Si se ejecuta manualmente, mostrar info
+if [ -t 1 ]; then
+    echo "🖨️  Autostart completado"
+    echo "📊 Verificar: screen -r impresoras"
+    echo "📋 Estado: cd ~/impresoras_pos && ./start_service.sh status"
+    echo "📝 Logs: tail -f ~/impresoras_pos/logs/autostart.log"
+fi
