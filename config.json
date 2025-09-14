@@ -1,64 +1,86 @@
 {
   "printers": [
     {
-      "name": "BEBIDAS",
-      "ip": "192.168.1.122",
+      "name": "RECIBOs PARQUE",
+      "ip": "192.168.1.100",
       "port": 9100,
-      "token": "fc635ae7-3ee7-4e8e-b806-ea922d947e0a",
+      "token": "4ece730e-e070-4776-9e15-e910ff74a22f",
       "active": true,
       "max_retries": 3,
       "retry_delay": 2,
       "connection_timeout": 8,
       "keep_alive_interval": 120,
-      "max_idle_time": 600
-    },
-    {
-      "name": "RECIBOS (PRINCIPAL)",
-      "ip": "192.168.1.122",
-      "port": 9100,
-      "token": "0d7e0855-771c-43e6-a95e-47143ac0a938",
-      "active": true,
-      "max_retries": 3,
-      "retry_delay": 2,
-      "connection_timeout": 8,
-      "keep_alive_interval": 120,
-      "max_idle_time": 600
-    },
-    {
-      "name": "PLANCHA",
-      "ip": "192.168.1.122",
-      "port": 9100,
-      "token": "2db3bf3b-58b8-4585-972e-6dbf2789a6a3",
-      "active": true,
-      "max_retries": 3,
-      "retry_delay": 2,
-      "connection_timeout": 8,
-      "keep_alive_interval": 300,
-      "max_idle_time": 600
-    },
-    {
-      "name": "CARRO DE PERROS",
-      "ip": "192.168.1.122",
-      "port": 9100,
-      "token": "4dbe4811-933f-4202-b1c5-74854912aa21",
-      "active": true,
-      "max_retries": 3,
-      "retry_delay": 2,
-      "connection_timeout": 8,
-      "keep_alive_interval": 300,
-      "max_idle_time": 600
-    },
-    {
-      "name": "RECIBOS (ESQUINA)",
-      "ip": "192.168.1.122",
-      "port": 9100,
-      "token": "b24960ef-0957-481b-a539-8ada3bc29ce9",
-      "active": true,
-      "max_retries": 3,
-      "retry_delay": 2,
-      "connection_timeout": 8,
-      "keep_alive_interval": 300,
-      "max_idle_time": 600
+      "max_idle_time": 600,
+      "printer_capabilities": {
+        "barcode_support": true,
+        "qr_support": true,
+        "max_width": 48,
+        "supported_barcodes": ["CODE39", "CODE93"],
+        "unsupported_barcodes": ["CODE128"],
+        "verified_date": "2025-09-14",
+        "test_code": "4K5TKMZT"
+      }
     }
-  ]
+  ],
+  "parque_settings": {
+    "codigo_length": 8,
+    "barcode_type": "CODE39",
+    "include_qr": true,
+    "auto_print_receipt": true,
+    "barcode_preferences": [
+      {
+        "type": "CODE39",
+        "priority": 1,
+        "params": {},
+        "status": "VERIFIED_WORKING"
+      },
+      {
+        "type": "CODE39",
+        "priority": 2,
+        "params": {"width": 2},
+        "status": "VERIFIED_WORKING"
+      },
+      {
+        "type": "CODE93",
+        "priority": 3,
+        "params": {},
+        "status": "VERIFIED_WORKING"
+      }
+    ],
+    "fallback_settings": {
+      "use_visual_fallback": true,
+      "visual_pattern": "asterisks",
+      "include_manual_scan_text": true,
+      "repeat_code_as_text": true
+    },
+    "receipt_instructions": [
+      "1. Presentar este código en la entrada",
+      "2. El staff escaneará el código", 
+      "3. Se asignará brazalete automáticamente",
+      "4. Tiempo empieza al escanear",
+      "5. Disfruten el parque"
+    ]
+  },
+  "debug": {
+    "log_barcode_attempts": true,
+    "test_mode": false,
+    "backup_as_text": true,
+    "log_level": "INFO",
+    "save_barcode_failures": false,
+    "detailed_error_logging": true
+  },
+  "test_results": {
+    "date": "2025-09-14",
+    "printer": "192.168.1.100:9100",
+    "test_code": "4K5TKMZT",
+    "results": {
+      "CODE128_basic": "FAILED - format invalid",
+      "CODE128_width": "FAILED - format invalid",
+      "CODE128_full": "FAILED - format invalid",
+      "CODE39_basic": "SUCCESS ✅",
+      "CODE39_width": "SUCCESS ✅",
+      "CODE93_basic": "SUCCESS ✅"
+    },
+    "recommendation": "Use CODE39 as primary, CODE93 as backup"
+  }
 }

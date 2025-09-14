@@ -918,7 +918,7 @@ class AsyncClient:
             return False
 
     def _print_playground_receipt(self, printer: Network, content: Dict, job_id: int, printer_config: PrinterConfig) -> bool:
-        """Imprime recibo específico para parque infantil con códigos de barras"""
+        """Imprime recibo específico para parque infantil con códigos de barras - CÓDIGO39 PRIORITARIO"""
         if self.logger.isEnabledFor(logging.INFO):
             self.logger.info(f"🎮 Imprimiendo recibo de parque #{job_id}")
         
@@ -983,7 +983,7 @@ class AsyncClient:
                     printer.text(f"Precio: Bs.{price:.2f}\n")
                     printer.text("-" * 48 + "\n")
                     
-                    # ===== CÓDIGO DE BARRAS PRINCIPAL =====
+                    # ===== CÓDIGO DE BARRAS - CODE39 PRIORITARIO =====
                     if code:
                         printer.set(align='center')
                         
@@ -992,50 +992,83 @@ class AsyncClient:
                         printer.text("🎯 CODIGO DE ACCESO 🎯\n")
                         printer.set(bold=False)
                         
-                        # CÓDIGO DE BARRAS CODE128
-                        try:
-                            # Parámetros optimizados para mejor legibilidad
-                            printer.barcode(
-                                code, 
-                                'CODE128', 
-                                width=2,      # Ancho de barras (1-6)
-                                height=100,   # Altura en píxeles
-                                pos='BELOW',  # Texto debajo del código
-                                font='B'      # Fuente del texto
-                            )
-                            printer.text("\n")
+                        # ORDEN CORREGIDO: CODE39 PRIMERO (funcionó en tu prueba)
+                        barcode_success = False
+                        
+                        # Intento 1: CODE39 básico (TU PRUEBA CONFIRMÓ QUE FUNCIONA)
+                        if not barcode_success:
+                            try:
+                                printer.barcode(code, 'CODE39')
+                                printer.text("\n")
+                                barcode_success = True
+                                self.logger.info(f"✅ Código de barras CODE39 básico: {code}")
+                            except Exception as e:
+                                self.logger.warning(f"⚠️ CODE39 básico falló: {e}")
+                        
+                        # Intento 2: CODE39 con parámetros (TU PRUEBA CONFIRMÓ QUE FUNCIONA)
+                        if not barcode_success:
+                            try:
+                                printer.barcode(code, 'CODE39', width=2)
+                                printer.text("\n")
+                                barcode_success = True
+                                self.logger.info(f"✅ Código de barras CODE39 con width: {code}")
+                            except Exception as e:
+                                self.logger.warning(f"⚠️ CODE39 con width falló: {e}")
+                        
+                        # Intento 3: CODE93 (TU PRUEBA CONFIRMÓ QUE FUNCIONA)
+                        if not barcode_success:
+                            try:
+                                printer.barcode(code, 'CODE93')
+                                printer.text("\n")
+                                barcode_success = True
+                                self.logger.info(f"✅ Código de barras CODE93: {code}")
+                            except Exception as e:
+                                self.logger.warning(f"⚠️ CODE93 falló: {e}")
+                        
+                        # Intento 4: CODE39 con altura personalizada
+                        if not barcode_success:
+                            try:
+                                printer.barcode(code, 'CODE39', width=2, height=60)
+                                printer.text("\n")
+                                barcode_success = True
+                                self.logger.info(f"✅ Código de barras CODE39 con altura: {code}")
+                            except Exception as e:
+                                self.logger.warning(f"⚠️ CODE39 con altura falló: {e}")
+                        
+                        # FALLBACK VISUAL MEJORADO (solo si TODO falla)
+                        if not barcode_success:
+                            self.logger.error(f"❌ TODOS los códigos de barras fallaron para: {code}")
                             
-                            if self.logger.isEnabledFor(logging.INFO):
-                                self.logger.info(f"✅ Código de barras impreso: {code}")
-                                
-                        except Exception as barcode_error:
-                            # Fallback: Si falla código de barras, usar texto grande
-                            if self.logger.isEnabledFor(logging.WARNING):
-                                self.logger.warning(f"⚠️ Error código de barras, usando texto: {barcode_error}")
-                            
+                            # Crear "código de barras" visual con asteriscos
+                            printer.text("*" * 48 + "\n")
                             printer.set(width=2, height=2, bold=True)
-                            printer.text(f"{code}\n")
+                            printer.text(f"  {code}  \n")
                             printer.set(width=1, height=1, bold=False)
+                            printer.text("*" * 48 + "\n")
+                            printer.text("** ESCANEAR CÓDIGO MANUAL **\n")
+                            printer.text("*" * 48 + "\n")
+                            
+                            # Log para debugging
+                            self.logger.error(f"💥 FALLBACK VISUAL USADO para código: {code}")
+                        else:
+                            # Log de éxito
+                            self.logger.info(f"🎯 CÓDIGO DE BARRAS IMPRESO EXITOSAMENTE: {code}")
                         
                         # Código también como texto normal (backup de lectura)
                         printer.set(align='center', bold=True)
                         printer.text(f"Código: {code}\n")
                         printer.set(bold=False)
                         
-                        # ===== CÓDIGO QR OPCIONAL =====
+                        # ===== CÓDIGO QR OPCIONAL (si la impresora lo soporta) =====
                         try:
                             # QR con datos adicionales para apps móviles
                             qr_data = f"PARQUE:{code}:{duration}:{tracking_number}"
-                            printer.qr(qr_data, size=6, center=True)
+                            printer.qr(qr_data, size=4, center=True)
                             printer.text("\n")
-                            
-                            if self.logger.isEnabledFor(logging.DEBUG):
-                                self.logger.debug(f"✅ QR generado: {qr_data}")
-                                
+                            self.logger.info(f"✅ QR generado: {qr_data}")
                         except Exception as qr_error:
                             # QR es opcional - muchas impresoras no lo soportan
-                            if self.logger.isEnabledFor(logging.DEBUG):
-                                self.logger.debug(f"ℹ️ QR no soportado: {qr_error}")
+                            self.logger.debug(f"ℹ️ QR no soportado (normal): {qr_error}")
                         
                         printer.set(align='left')
                         printer.text("=" * 48 + "\n")

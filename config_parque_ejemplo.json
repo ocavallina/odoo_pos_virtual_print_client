@@ -1,10 +1,10 @@
 {
   "printers": [
     {
-      "name": "RECIBOS PARQUE",
+      "name": "RECIBOS PARQUE (PRINCIPAL)",
       "ip": "192.168.1.100",
       "port": 9100,
-      "token": "COPIAR-TOKEN-DESDE-ODOO-IMPRESORA-RECIBOS",
+      "token": "0d7e0855-771c-43e6-a95e-47143ac0a938",
       "active": true,
       "max_retries": 3,
       "retry_delay": 2,
@@ -13,15 +13,26 @@
       "max_idle_time": 600,
       "printer_capabilities": {
         "barcode_support": true,
-        "qr_support": true,
-        "max_width": 48
+        "qr_support": false,
+        "max_width": 48,
+        "supported_barcodes": ["CODE39", "CODE93"],
+        "unsupported_barcodes": ["CODE128"],
+        "barcode_max_height": 80,
+        "barcode_max_width": 3,
+        "test_verified": "2025-09-14",
+        "test_code": "4K5TKMZT"
+      },
+      "debug_settings": {
+        "log_all_barcode_attempts": true,
+        "verified_working_format": "CODE39",
+        "fallback_always_visible": true
       }
     },
     {
       "name": "COCINA GENERAL",
-      "ip": "192.168.1.101", 
+      "ip": "192.168.1.122", 
       "port": 9100,
-      "token": "COPIAR-TOKEN-DESDE-ODOO-IMPRESORA-COCINA",
+      "token": "2db3bf3b-58b8-4585-972e-6dbf2789a6a3",
       "active": true,
       "max_retries": 3,
       "retry_delay": 2,
@@ -32,19 +43,80 @@
   ],
   "parque_settings": {
     "codigo_length": 8,
-    "barcode_type": "CODE128",
-    "include_qr": true,
-    "auto_print_receipt": true,
+    "codigo_pattern": "^[A-Z0-9]{8}$",
+    "barcode_preferences": [
+      {
+        "type": "CODE39",
+        "priority": 1,
+        "params": {},
+        "tested": "2025-09-14",
+        "status": "WORKING"
+      },
+      {
+        "type": "CODE39", 
+        "priority": 2,
+        "params": {"width": 2},
+        "tested": "2025-09-14",
+        "status": "WORKING"
+      },
+      {
+        "type": "CODE93",
+        "priority": 3,
+        "params": {},
+        "tested": "2025-09-14",
+        "status": "WORKING"
+      },
+      {
+        "type": "CODE128",
+        "priority": 99,
+        "params": {},
+        "tested": "2025-09-14",
+        "status": "NOT_SUPPORTED",
+        "error": "Barcode '4K5TKMZT' not in a valid format for type 'CODE128'"
+      }
+    ],
+    "fallback_settings": {
+      "use_visual_fallback": true,
+      "visual_pattern": "asterisks",
+      "include_manual_scan_text": true,
+      "repeat_code_as_text": true
+    },
     "receipt_instructions": [
-      "1. Presentar este código en la entrada",
+      "1. Presente este código en la entrada",
       "2. El staff escaneará el código", 
       "3. Se asignará brazalete automáticamente",
-      "4. Disfruten el parque"
-    ]
+      "4. Tiempo empieza al escanear",
+      "5. Supervisión de adultos requerida"
+    ],
+    "print_settings": {
+      "test_connection_before_print": false,
+      "retry_failed_barcodes": false,
+      "log_barcode_success": true,
+      "pause_between_elements": 0.3,
+      "preferred_format": "CODE39"
+    }
   },
   "debug": {
+    "log_level": "INFO",
     "log_barcode_attempts": true,
+    "save_barcode_failures": false,
     "test_mode": false,
-    "backup_as_text": true
+    "backup_as_text": true,
+    "detailed_error_logging": true,
+    "performance_monitoring": false
+  },
+  "testing_results": {
+    "date": "2025-09-14",
+    "test_code": "4K5TKMZT",
+    "printer_ip": "192.168.1.100:9100",
+    "results": {
+      "CODE128_basic": "FAILED - not in valid format",
+      "CODE128_width": "FAILED - not in valid format", 
+      "CODE128_full": "FAILED - not in valid format",
+      "CODE39_basic": "SUCCESS",
+      "CODE39_width": "SUCCESS",
+      "CODE93_basic": "SUCCESS"
+    },
+    "recommendation": "Use CODE39 as primary format"
   }
 }
