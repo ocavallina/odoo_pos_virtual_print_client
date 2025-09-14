@@ -1,0 +1,50 @@
+{
+  "printers": [
+    {
+      "name": "RECIBOS PARQUE",
+      "ip": "192.168.1.100",
+      "port": 9100,
+      "token": "COPIAR-TOKEN-DESDE-ODOO-IMPRESORA-RECIBOS",
+      "active": true,
+      "max_retries": 3,
+      "retry_delay": 2,
+      "connection_timeout": 8,
+      "keep_alive_interval": 120,
+      "max_idle_time": 600,
+      "printer_capabilities": {
+        "barcode_support": true,
+        "qr_support": true,
+        "max_width": 48
+      }
+    },
+    {
+      "name": "COCINA GENERAL",
+      "ip": "192.168.1.101", 
+      "port": 9100,
+      "token": "COPIAR-TOKEN-DESDE-ODOO-IMPRESORA-COCINA",
+      "active": true,
+      "max_retries": 3,
+      "retry_delay": 2,
+      "connection_timeout": 8,
+      "keep_alive_interval": 300,
+      "max_idle_time": 600
+    }
+  ],
+  "parque_settings": {
+    "codigo_length": 8,
+    "barcode_type": "CODE128",
+    "include_qr": true,
+    "auto_print_receipt": true,
+    "receipt_instructions": [
+      "1. Presentar este código en la entrada",
+      "2. El staff escaneará el código", 
+      "3. Se asignará brazalete automáticamente",
+      "4. Disfruten el parque"
+    ]
+  },
+  "debug": {
+    "log_barcode_attempts": true,
+    "test_mode": false,
+    "backup_as_text": true
+  }
+}

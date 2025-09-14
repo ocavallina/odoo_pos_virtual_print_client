@@ -1,0 +1,29 @@
+# Logs generados automáticamente
+logs/
+*.log
+
+# Estado del sistema generado automáticamente
+status/
+
+# Configuraciones locales específicas
+config.json
+
+# Archivos de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Archivos temporales
+*.tmp
+*.bak
+*~
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo

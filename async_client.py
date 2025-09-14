@@ -891,9 +891,294 @@ class AsyncClient:
             return False
         
     def _print_receipt(self, printer: Network, content: Dict, job_id: int, printer_config: PrinterConfig) -> bool:
-        """Imprime recibo mejorado con mejor formato y alineación"""
+        """Imprime recibo con detección automática de tipo (normal vs parque)"""
         if self.logger.isEnabledFor(logging.DEBUG):
-            self.logger.debug(f"🧾 Imprimiendo recibo #{job_id}")
+            self.logger.debug(f"🧾 Analizando tipo de recibo #{job_id}")
+        
+        try:
+            # Detectar si es recibo de parque
+            is_playground = (
+                content.get('is_playground_receipt', False) or 
+                content.get('playground_codes') or
+                content.get('job_type') == 'playground_receipt' or
+                len(content.get('playground_codes', [])) > 0
+            )
+            
+            if is_playground:
+                if self.logger.isEnabledFor(logging.INFO):
+                    self.logger.info(f"🎮 Detectado recibo de parque #{job_id}")
+                return self._print_playground_receipt(printer, content, job_id, printer_config)
+            else:
+                if self.logger.isEnabledFor(logging.DEBUG):
+                    self.logger.debug(f"🧾 Recibo normal #{job_id}")
+                return self._print_regular_receipt(printer, content, job_id, printer_config)
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error general recibo #{job_id}: {e}")
+            return False
+
+    def _print_playground_receipt(self, printer: Network, content: Dict, job_id: int, printer_config: PrinterConfig) -> bool:
+        """Imprime recibo específico para parque infantil con códigos de barras"""
+        if self.logger.isEnabledFor(logging.INFO):
+            self.logger.info(f"🎮 Imprimiendo recibo de parque #{job_id}")
+        
+        try:
+            company_name = content.get('company_name', 'PARQUE INFANTIL')
+            tracking_number = content.get('tracking_number', content.get('order_name', 'N/A'))
+            
+            # ========== ENCABEZADO ==========
+            printer.set(align='center', width=2, height=2, bold=True)
+            printer.text(f"{company_name}\n")
+            
+            printer.set(align='center', width=1, height=1, bold=False)
+            printer.text("=" * 48 + "\n")
+            
+            # ========== INFORMACIÓN DE LA ORDEN ==========
+            printer.set(align='left', bold=True)
+            printer.text(f"ENTRADA PARQUE: {tracking_number}\n")
+            printer.set(bold=False)
+            
+            # Fecha y hora
+            order_date = content.get('datetime', datetime.now().strftime('%d/%m/%Y %H:%M'))
+            printer.text(f"Fecha: {order_date}\n")
+            
+            # Información adicional
+            table = content.get('table', 'N/A')
+            server = content.get('server', 'N/A')
+            customer = content.get('customer', 'Cliente General')
+            
+            if table != 'N/A':
+                printer.text(f"Mesa: {table} | Mesero: {server}\n")
+            else:
+                printer.text(f"Mesero: {server}\n")
+            
+            if customer != 'Cliente General':
+                printer.text(f"Cliente: {customer[:40]}\n")
+            
+            printer.text("=" * 48 + "\n")
+            
+            # ========== CÓDIGOS DE PARQUE CON CÓDIGO DE BARRAS ==========
+            playground_codes = content.get('playground_codes', [])
+            total_playground = 0
+            
+            if playground_codes:
+                printer.set(align='center', bold=True, width=1, height=2)
+                printer.text("🎮 ENTRADAS PARQUE INFANTIL 🎮\n")
+                printer.set(align='left', bold=False, width=1, height=1)
+                printer.text("=" * 48 + "\n")
+                
+                for i, code_data in enumerate(playground_codes, 1):
+                    product_name = code_data.get('product_name', 'Entrada Parque')
+                    qty = int(code_data.get('qty', 1))
+                    duration = code_data.get('duration', 0)
+                    code = code_data.get('code', '')
+                    price = float(code_data.get('price_subtotal', 0))
+                    total_playground += price
+                    
+                    # Información del producto
+                    printer.set(bold=True)
+                    printer.text(f"{i}. {product_name}\n")
+                    printer.set(bold=False)
+                    printer.text(f"Cantidad: {qty} | Duración: {duration} min\n")
+                    printer.text(f"Precio: Bs.{price:.2f}\n")
+                    printer.text("-" * 48 + "\n")
+                    
+                    # ===== CÓDIGO DE BARRAS PRINCIPAL =====
+                    if code:
+                        printer.set(align='center')
+                        
+                        # Título del código
+                        printer.set(bold=True)
+                        printer.text("🎯 CODIGO DE ACCESO 🎯\n")
+                        printer.set(bold=False)
+                        
+                        # CÓDIGO DE BARRAS CODE128
+                        try:
+                            # Parámetros optimizados para mejor legibilidad
+                            printer.barcode(
+                                code, 
+                                'CODE128', 
+                                width=2,      # Ancho de barras (1-6)
+                                height=100,   # Altura en píxeles
+                                pos='BELOW',  # Texto debajo del código
+                                font='B'      # Fuente del texto
+                            )
+                            printer.text("\n")
+                            
+                            if self.logger.isEnabledFor(logging.INFO):
+                                self.logger.info(f"✅ Código de barras impreso: {code}")
+                                
+                        except Exception as barcode_error:
+                            # Fallback: Si falla código de barras, usar texto grande
+                            if self.logger.isEnabledFor(logging.WARNING):
+                                self.logger.warning(f"⚠️ Error código de barras, usando texto: {barcode_error}")
+                            
+                            printer.set(width=2, height=2, bold=True)
+                            printer.text(f"{code}\n")
+                            printer.set(width=1, height=1, bold=False)
+                        
+                        # Código también como texto normal (backup de lectura)
+                        printer.set(align='center', bold=True)
+                        printer.text(f"Código: {code}\n")
+                        printer.set(bold=False)
+                        
+                        # ===== CÓDIGO QR OPCIONAL =====
+                        try:
+                            # QR con datos adicionales para apps móviles
+                            qr_data = f"PARQUE:{code}:{duration}:{tracking_number}"
+                            printer.qr(qr_data, size=6, center=True)
+                            printer.text("\n")
+                            
+                            if self.logger.isEnabledFor(logging.DEBUG):
+                                self.logger.debug(f"✅ QR generado: {qr_data}")
+                                
+                        except Exception as qr_error:
+                            # QR es opcional - muchas impresoras no lo soportan
+                            if self.logger.isEnabledFor(logging.DEBUG):
+                                self.logger.debug(f"ℹ️ QR no soportado: {qr_error}")
+                        
+                        printer.set(align='left')
+                        printer.text("=" * 48 + "\n")
+                        
+                        # ===== INSTRUCCIONES DE USO =====
+                        printer.set(align='center', bold=True)
+                        printer.text("📋 INSTRUCCIONES DE USO 📋\n")
+                        printer.set(align='left', bold=False)
+                        printer.text("1. Presente este código en la entrada\n")
+                        printer.text("2. El staff escaneará el código\n")
+                        printer.text("3. Se asignará brazalete automáticamente\n")
+                        printer.text(f"4. Tiempo de juego: {duration} minutos\n")
+                        printer.text("5. Supervise a los niños en todo momento\n")
+                        printer.text("\n")
+                        
+                    else:
+                        # Error: sin código generado
+                        printer.set(align='center', bold=True)
+                        printer.text("⚠️ ERROR: SIN CÓDIGO ⚠️\n")
+                        printer.text("Contacte al personal\n")
+                        printer.set(align='left', bold=False)
+                    
+                    printer.text("=" * 48 + "\n")
+            
+            # ========== PRODUCTOS REGULARES (SI LOS HAY) ==========
+            regular_lines = content.get('regular_lines', [])
+            total_regular = 0
+            
+            if regular_lines:
+                printer.text("OTROS PRODUCTOS:\n")
+                printer.text("-" * 48 + "\n")
+                printer.set(bold=True)
+                printer.text("CANT DESCRIPCION           PRECIO     SUBTOTAL\n")
+                printer.set(bold=False)
+                printer.text("-" * 48 + "\n")
+                
+                for line in regular_lines:
+                    name = line.get('product_name', line.get('name', 'Producto'))[:20].ljust(20)
+                    qty = int(line.get('qty', 1))
+                    price = float(line.get('price_unit', 0))
+                    subtotal = float(line.get('price_subtotal', 0))
+                    total_regular += subtotal
+                    
+                    qty_str = f"{qty:>3}"
+                    price_str = f"Bs.{price:>6.2f}"
+                    subtotal_str = f"Bs.{subtotal:>8.2f}"
+                    
+                    printer.text(f"{qty_str} {name} {price_str} {subtotal_str}\n")
+            
+            # ========== TOTALES ==========
+            printer.text("=" * 48 + "\n")
+            
+            total_final = total_playground + total_regular
+            
+            if total_playground > 0:
+                printer.text(f"{'Subtotal Parque:':<32} Bs.{total_playground:>11.2f}\n")
+            if total_regular > 0:
+                printer.text(f"{'Subtotal Otros:':<32} Bs.{total_regular:>11.2f}\n")
+            
+            # Total final destacado
+            printer.text("=" * 48 + "\n")
+            printer.set(bold=True, width=1, height=2)
+            printer.text(f"{'TOTAL:':<24} Bs.{total_final:>11.2f}\n")
+            printer.set(bold=False, width=1, height=1)
+            printer.text("=" * 48 + "\n")
+            
+            # ========== INFORMACIÓN DE PAGO ==========
+            payments = content.get('payments', [])
+            if payments:
+                printer.text("Método(s) de pago:\n")
+                for payment in payments:
+                    method = payment.get('payment_method', 'Efectivo')
+                    amount = float(payment.get('amount', 0))
+                    printer.text(f"  {method}: Bs.{amount:.2f}\n")
+            
+            printer.text("\n")
+            
+            # ========== PIE DEL RECIBO ==========
+            printer.set(align='center')
+            
+            # Advertencias importantes
+            printer.set(bold=True)
+            printer.text("⚠️ IMPORTANTE ⚠️\n")
+            printer.set(bold=False)
+            printer.text("• Conserve este recibo\n")
+            printer.text("• No se admiten reembolsos\n")
+            printer.text("• Válido solo por hoy\n")
+            printer.text("• Supervisión de adultos requerida\n")
+            printer.text("• En caso de emergencia avisar al staff\n")
+            printer.text("\n")
+            
+            # Mensaje de bienvenida
+            printer.set(bold=True)
+            printer.text("🎈 ¡DISFRUTEN EL PARQUE! 🎈\n")
+            printer.set(bold=False)
+            printer.text("\n")
+            
+            # Información del terminal
+            cashier = content.get('server', 'Sistema')
+            printer.text(f"Cajero: {cashier}\n")
+            printer.text(f"Terminal: {printer_config.name[:30]}\n")
+            printer.text(f"Impreso: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+            
+            # Información adicional del establecimiento
+            printer.text("\n")
+            printer.text("Gracias por elegirnos\n")
+            printer.text("¡Vuelvan pronto!\n")
+            
+            # ========== CORTAR PAPEL ==========
+            printer.text("\n")
+            try:
+                printer.cut(mode='FULL')
+            except Exception:
+                try:
+                    printer.cut(mode='PART')
+                except Exception:
+                    try:
+                        printer.cut()
+                    except Exception:
+                        # Si no puede cortar, espacios extra
+                        printer.text("\n\n\n\n")
+            
+            # Pausa para estabilizar impresora
+            time.sleep(0.5)
+            
+            # Log final exitoso
+            codes_count = len(playground_codes)
+            if self.logger.isEnabledFor(logging.INFO):
+                self.logger.info(f"✅ Recibo parque #{job_id} completado - "
+                            f"{codes_count} códigos, Total: Bs.{total_final:.2f}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error recibo parque #{job_id}: {e}")
+            if self.logger.isEnabledFor(logging.DEBUG):
+                self.logger.exception("Stack trace completo:")
+            return False
+
+    def _print_regular_receipt(self, printer: Network, content: Dict, job_id: int, printer_config: PrinterConfig) -> bool:
+        """Imprime recibo regular (sin códigos de barras) - CÓDIGO ORIGINAL CONSERVADO"""
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug(f"🧾 Imprimiendo recibo regular #{job_id}")
         
         try:
             company_name = content.get('company_name', 'EMPRESA')
@@ -1001,7 +1286,7 @@ class AsyncClient:
                     
                 except (ValueError, TypeError) as e:
                     if self.logger.isEnabledFor(logging.WARNING):
-                        self.logger.warning(f"⚠️  Error procesando línea: {e}")
+                        self.logger.warning(f"⚠️ Error procesando línea: {e}")
                     continue
             
             # Separador antes de totales
@@ -1108,24 +1393,24 @@ class AsyncClient:
             printer.text("\n")
             try:
                 printer.cut(mode='FULL')
-            except:
+            except Exception:
                 try:
                     printer.cut(mode='PART')
-                except:
+                except Exception:
                     try:
                         printer.cut()
-                    except:
+                    except Exception:
                         printer.text("\n\n\n\n")
             
             time.sleep(0.3)
             
             if self.logger.isEnabledFor(logging.INFO):
-                self.logger.info(f"✅ Recibo #{job_id} - {line_count} productos, Total: Bs.{total:.2f}")
+                self.logger.info(f"✅ Recibo regular #{job_id} - {line_count} productos, Total: Bs.{total:.2f}")
             
             return True
             
         except Exception as e:
-            self.logger.error(f"❌ Error recibo #{job_id}: {e}")
+            self.logger.error(f"❌ Error recibo regular #{job_id}: {e}")
             return False
 
     async def process_printer_jobs(self, session: aiohttp.ClientSession, token: str) -> int:
